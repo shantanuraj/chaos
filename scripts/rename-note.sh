@@ -12,9 +12,10 @@ fi
 ID="$1"
 NEW_TITLE="$2"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-CHAOS_ROOT="$(dirname "$SCRIPT_DIR")"
-NOTES_DIR="$CHAOS_ROOT/notes"
 export PATH="$HOME/.bun/bin:$PATH"
+
+# Ensure data directory exists
+source "$SCRIPT_DIR/ensure-data-dir.sh"
 
 # Find existing file by ID
 OLD_FILE=$(find "$NOTES_DIR" -name "${ID}-*.md" -type f | head -n 1)
@@ -52,11 +53,13 @@ if [ "$OLD_FILE" != "$NEW_FILEPATH" ]; then
   mv "$OLD_FILE" "$NEW_FILEPATH"
 fi
 
-# Pull, add, commit, push
-cd "$CHAOS_ROOT"
-git pull --rebase 2>/dev/null || true
-git add -A
-git commit -m "renamed note $ID to $NEW_SLUG"
-git push
+# Git operations (only if data dir has .git)
+if [ -d "$DATA_DIR/.git" ]; then
+  cd "$DATA_DIR"
+  git pull --rebase 2>/dev/null || true
+  git add -A
+  git commit -m "renamed note $ID to $NEW_SLUG"
+  git remote | grep -q . && git push
+fi
 
 echo "$NEW_FILEPATH"

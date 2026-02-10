@@ -11,8 +11,10 @@ fi
 
 FILE="$1"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-CHAOS_ROOT="$(dirname "$SCRIPT_DIR")"
 export PATH="$HOME/.bun/bin:$PATH"
+
+# Ensure data directory exists
+source "$SCRIPT_DIR/ensure-data-dir.sh"
 
 if [ ! -f "$FILE" ]; then
   echo "Error: file '$FILE' not found" >&2
@@ -75,11 +77,14 @@ fi
 # Extract slug for commit message
 SLUG=$(echo "$FILENAME" | sed "s/^${ID}-//" | sed 's/\.md$//')
 
-# Pull, add, commit, push
-cd "$CHAOS_ROOT"
-git pull --rebase 2>/dev/null || true
-git add "$FILE"
-git commit -m "updated note $ID-$SLUG"
-git push
-
-echo "committed $FILE"
+# Git operations (only if data dir has .git)
+if [ -d "$DATA_DIR/.git" ]; then
+  cd "$DATA_DIR"
+  git pull --rebase 2>/dev/null || true
+  git add "$FILE"
+  git commit -m "updated note $ID-$SLUG"
+  git remote | grep -q . && git push
+  echo "committed $FILE"
+else
+  echo "updated $FILE"
+fi

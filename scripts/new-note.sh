@@ -2,7 +2,8 @@
 set -e
 
 # new-note.sh <title>
-# Creates a new note with the given title, commits it, and prints the path
+# Creates a new note with the given title and prints the path
+# If data dir has .git, commits and pushes
 
 if [ -z "$1" ]; then
   echo "Usage: new-note.sh <title>" >&2
@@ -11,8 +12,9 @@ fi
 
 TITLE="$1"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-CHAOS_ROOT="$(dirname "$SCRIPT_DIR")"
-NOTES_DIR="$CHAOS_ROOT/notes"
+
+# Ensure data directory exists
+source "$SCRIPT_DIR/ensure-data-dir.sh"
 
 # Generate nanoid (21 chars, lowercase alphanumeric)
 ID=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 21 | head -n 1)
@@ -31,11 +33,13 @@ title: $TITLE
 ---
 EOF
 
-# Pull, add, commit, push
-cd "$CHAOS_ROOT"
-git pull --rebase 2>/dev/null || true
-git add "$FILEPATH"
-git commit -m "created note $ID-$SLUG"
-git push
+# Git operations (only if data dir has .git)
+if [ -d "$DATA_DIR/.git" ]; then
+  cd "$DATA_DIR"
+  git pull --rebase 2>/dev/null || true
+  git add "$FILEPATH"
+  git commit -m "created note $ID-$SLUG"
+  git remote | grep -q . && git push
+fi
 
 echo "$FILEPATH"

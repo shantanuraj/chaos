@@ -2,27 +2,54 @@
 
 A minimal, file-based personal knowledge system designed for AI-assisted workflows.
 
-Recommended setup: [OpenClaw](https://openclaw.ai/) and [exe.dev](https://exe.dev).
-
 ## Features
 
 - **One note per idea** — notes evolve in place, no separate drafts
 - **Stable IDs** — 21-character nanoid that never changes, even when renaming
 - **Minimal metadata** — just id, title, optional status and tags
-- **Git-backed** — every change is committed and pushed automatically
-- **AI-native** — designed for agents to read and write notes via scripts
+- **Git-backed** — optional automatic commit and push
+- **AI-native** — works with any agent that can run shell commands
 - **Web UI** — simple React app for human access
+
+## Works With
+
+- [OpenClaw](https://openclaw.ai/)
+- [Claude Code](https://claude.ai/)
+- [Codex](https://openai.com/codex)
+- Any AI assistant with shell access
+
+## Installation
+
+Clone to your agent's skills directory:
+
+```bash
+# OpenClaw
+cd ~/.openclaw/skills && git clone https://github.com/dooart/chaos.git
+
+# Claude Code
+cd ~/.claude/skills && git clone https://github.com/dooart/chaos.git
+
+# Other agents - check your agent's docs for skills directory
+cd /path/to/skills && git clone https://github.com/dooart/chaos.git
+```
+
+**❗ After cloning, complete setup.** See **[SETUP.md](SETUP.md)** to configure the web UI and optional git backup. The data directory (`~/.chaos`) is created automatically on first use.
+
+Follows the [AgentSkills](https://skill.md) format supported by most AI coding agents.
 
 ## Structure
 
 ```
-chaos/
-├── notes/          # All notes as <id>-<slug>.md
-├── assets/         # Images (webp) with metadata
-├── scripts/        # Automation scripts (create, update, delete, search)
-├── skills/         # AI agent skill definitions
-├── web/            # React web UI + Hono server
-└── tests/          # Test files
+~/.chaos/               # Your data (default location)
+├── notes/             # Your notes
+└── assets/            # Images
+
+/path/to/skills/chaos/  # Skill directory
+├── SKILL.md           # Agent instructions
+├── SETUP.md           # Setup guide
+├── scripts/           # Automation scripts
+├── web/               # React web UI + server
+└── data/              # Symlink to ~/.chaos
 ```
 
 ## Note Format
@@ -42,7 +69,12 @@ Markdown body with [[links]] to other notes by ID.
 
 ## Quick Start
 
-See [SETUP.md](SETUP.md) for full installation and configuration instructions.
+After setup, ask your AI agent:
+- "Create a note about project ideas"
+- "Search my notes for anything about AI"
+- "Update my todo note with a new item"
+
+Or use scripts directly:
 
 ```bash
 # Create a note
@@ -54,10 +86,6 @@ See [SETUP.md](SETUP.md) for full installation and configuration instructions.
 # Start the web UI
 cd web && bun run server.ts
 ```
-
-## For AI Agents
-
-See [AGENTS.md](AGENTS.md) for guidance on working with this codebase, and [skills/chaos/SKILL.md](skills/chaos/SKILL.md) for the full note management API.
 
 ## License
 

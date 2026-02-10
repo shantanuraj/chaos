@@ -4,8 +4,24 @@ set -e
 # Integration test for chaos notes scripts
 # Creates a test note, performs all operations, then deletes it
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-NOTES_DIR="$(dirname "$SCRIPT_DIR")/notes"
+TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
+SKILL_ROOT="$(dirname "$TEST_DIR")"
+SCRIPTS_DIR="$SKILL_ROOT/scripts"
+
+# Create isolated temp data directory
+TEMP_DATA=$(mktemp -d)
+mkdir -p "$TEMP_DATA/notes" "$TEMP_DATA/assets"
+cd "$TEMP_DATA" && git init -q && git config user.email "test@test.com" && git config user.name "Test"
+export CHAOS_DATA_DIR="$TEMP_DATA"
+
+# Cleanup on exit
+cleanup() {
+  rm -rf "$TEMP_DATA"
+}
+trap cleanup EXIT
+
+DATA_DIR="$TEMP_DATA"
+NOTES_DIR="$DATA_DIR/notes"
 TIMESTAMP=$(date +%s)
 TEST_TITLE="Test Note $TIMESTAMP"
 
@@ -92,7 +108,7 @@ echo ""
 # --- TEST: Create note ---
 yellow "1. Testing new-note.sh"
 
-OUTPUT=$("$SCRIPT_DIR/new-note.sh" "$TEST_TITLE" 2>&1)
+OUTPUT=$("$SCRIPTS_DIR/new-note.sh" "$TEST_TITLE" 2>&1)
 FILE_PATH=$(echo "$OUTPUT" | tail -1)
 FILE_NAME=$(basename "$FILE_PATH")
 NOTE_ID=$(echo "$FILE_NAME" | cut -d'-' -f1)
@@ -115,7 +131,7 @@ TEST_CONTENT="# Hello World
 
 This is test content for note $TIMESTAMP."
 
-OUTPUT=$("$SCRIPT_DIR/update-note.sh" "$NOTE_ID" "$TEST_CONTENT" 2>&1)
+OUTPUT=$("$SCRIPTS_DIR/update-note.sh" "$NOTE_ID" "$TEST_CONTENT" 2>&1)
 assert_contains "$OUTPUT" "updated note" "commit message present"
 
 CONTENT=$(cat "$FILE_PATH")
@@ -127,7 +143,7 @@ echo ""
 # --- TEST: Update status ---
 yellow "3. Testing update-note.sh (--status=building)"
 
-OUTPUT=$("$SCRIPT_DIR/update-note.sh" "$NOTE_ID" --status=building 2>&1)
+OUTPUT=$("$SCRIPTS_DIR/update-note.sh" "$NOTE_ID" --status=building 2>&1)
 assert_contains "$OUTPUT" "updated note" "commit message present"
 
 CONTENT=$(cat "$FILE_PATH")
@@ -139,7 +155,7 @@ echo ""
 # --- TEST: Update tags ---
 yellow "4. Testing update-note.sh (--tags=test,integration)"
 
-OUTPUT=$("$SCRIPT_DIR/update-note.sh" "$NOTE_ID" --tags=test,integration 2>&1)
+OUTPUT=$("$SCRIPTS_DIR/update-note.sh" "$NOTE_ID" --tags=test,integration 2>&1)
 assert_contains "$OUTPUT" "updated note" "commit message present"
 
 CONTENT=$(cat "$FILE_PATH")
@@ -151,7 +167,7 @@ echo ""
 # --- TEST: Update status to done ---
 yellow "5. Testing update-note.sh (--status=done)"
 
-OUTPUT=$("$SCRIPT_DIR/update-note.sh" "$NOTE_ID" --status=done 2>&1)
+OUTPUT=$("$SCRIPTS_DIR/update-note.sh" "$NOTE_ID" --status=done 2>&1)
 assert_contains "$OUTPUT" "updated note" "commit message present"
 
 CONTENT=$(cat "$FILE_PATH")
@@ -166,7 +182,7 @@ NEW_CONTENT="# Updated Content
 
 All options test."
 
-OUTPUT=$("$SCRIPT_DIR/update-note.sh" "$NOTE_ID" --status=building --tags=final,test "$NEW_CONTENT" 2>&1)
+OUTPUT=$("$SCRIPTS_DIR/update-note.sh" "$NOTE_ID" --status=building --tags=final,test "$NEW_CONTENT" 2>&1)
 assert_contains "$OUTPUT" "updated note" "commit message present"
 
 CONTENT=$(cat "$FILE_PATH")
@@ -180,7 +196,7 @@ echo ""
 # --- TEST: Clear status ---
 yellow "7. Testing update-note.sh (--status=clear)"
 
-OUTPUT=$("$SCRIPT_DIR/update-note.sh" "$NOTE_ID" --status=clear 2>&1)
+OUTPUT=$("$SCRIPTS_DIR/update-note.sh" "$NOTE_ID" --status=clear 2>&1)
 assert_contains "$OUTPUT" "updated note" "commit message present"
 
 CONTENT=$(cat "$FILE_PATH")
@@ -192,7 +208,7 @@ echo ""
 # --- TEST: Clear tags ---
 yellow "8. Testing update-note.sh (--tags=)"
 
-OUTPUT=$("$SCRIPT_DIR/update-note.sh" "$NOTE_ID" --tags= 2>&1)
+OUTPUT=$("$SCRIPTS_DIR/update-note.sh" "$NOTE_ID" --tags= 2>&1)
 assert_contains "$OUTPUT" "updated note" "commit message present"
 
 CONTENT=$(cat "$FILE_PATH")
@@ -204,7 +220,7 @@ echo ""
 yellow "9. Testing rename-note.sh"
 
 NEW_TITLE="Renamed Test Note $TIMESTAMP"
-OUTPUT=$("$SCRIPT_DIR/rename-note.sh" "$NOTE_ID" "$NEW_TITLE" 2>&1)
+OUTPUT=$("$SCRIPTS_DIR/rename-note.sh" "$NOTE_ID" "$NEW_TITLE" 2>&1)
 assert_contains "$OUTPUT" "renamed note" "commit message present"
 
 NEW_FILE_PATH=$(echo "$OUTPUT" | tail -1)
@@ -223,7 +239,7 @@ echo ""
 # --- TEST: Invalid status ---
 yellow "10. Testing validation (invalid status)"
 
-OUTPUT=$("$SCRIPT_DIR/update-note.sh" "$NOTE_ID" --status=invalid 2>&1 || true)
+OUTPUT=$("$SCRIPTS_DIR/update-note.sh" "$NOTE_ID" --status=invalid 2>&1 || true)
 assert_contains "$OUTPUT" "invalid status" "invalid status rejected"
 
 echo ""
@@ -231,9 +247,63 @@ echo ""
 # --- TEST: Delete note ---
 yellow "11. Testing delete-note.sh"
 
-OUTPUT=$("$SCRIPT_DIR/delete-note.sh" "$NOTE_ID" 2>&1)
+OUTPUT=$("$SCRIPTS_DIR/delete-note.sh" "$NOTE_ID" 2>&1)
 assert_contains "$OUTPUT" "deleted note" "commit message present"
 assert_file_not_exists "$FILE_PATH" "note file deleted"
+
+echo ""
+
+# --- TEST WITHOUT GIT ---
+echo ""
+yellow "=== Testing without Git ==="
+echo ""
+
+# Create temp dir WITHOUT git
+TEMP_DATA_NOGIT=$(mktemp -d)
+mkdir -p "$TEMP_DATA_NOGIT/notes" "$TEMP_DATA_NOGIT/assets"
+export CHAOS_DATA_DIR="$TEMP_DATA_NOGIT"
+
+# Update symlink for new temp dir
+# CHAOS_DATA_DIR is already exported, scripts will use it directly
+
+NOGIT_TITLE="No Git Test $TIMESTAMP"
+
+yellow "12. Testing new-note.sh (no git)"
+OUTPUT=$($SCRIPTS_DIR/new-note.sh "$NOGIT_TITLE" 2>&1)
+NOGIT_FILE=$(echo "$OUTPUT" | tail -1)
+NOGIT_ID=$(basename "$NOGIT_FILE" | cut -d'-' -f1)
+assert_file_exists "$NOGIT_FILE" "note created without git"
+assert_not_contains "$OUTPUT" "fatal" "no git errors"
+
+echo ""
+
+yellow "13. Testing update-note.sh (no git)"
+OUTPUT=$($SCRIPTS_DIR/update-note.sh "$NOGIT_ID" "Content without git" 2>&1)
+assert_contains "$OUTPUT" "updated" "update works without git"
+assert_not_contains "$OUTPUT" "fatal" "no git errors on update"
+
+echo ""
+
+yellow "14. Testing search-notes.sh (no git)"
+OUTPUT=$($SCRIPTS_DIR/search-notes.sh "without" 2>&1)
+assert_contains "$OUTPUT" "$NOGIT_ID" "search works without git"
+
+echo ""
+
+yellow "15. Testing rename-note.sh (no git)"
+OUTPUT=$($SCRIPTS_DIR/rename-note.sh "$NOGIT_ID" "Renamed No Git" 2>&1)
+assert_not_contains "$OUTPUT" "fatal" "rename works without git"
+
+echo ""
+
+yellow "16. Testing delete-note.sh (no git)"
+NOGIT_FILE_NEW=$(echo "$OUTPUT" | tail -1)
+OUTPUT=$($SCRIPTS_DIR/delete-note.sh "$NOGIT_ID" 2>&1)
+assert_contains "$OUTPUT" "deleted" "delete works without git"
+assert_not_contains "$OUTPUT" "fatal" "no git errors on delete"
+
+# Cleanup no-git temp dir
+rm -rf "$TEMP_DATA_NOGIT"
 
 echo ""
 

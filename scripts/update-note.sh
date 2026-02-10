@@ -15,9 +15,10 @@ set -e
 #   update-note.sh abc123 --status=clear "Content"  # removes status field
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-CHAOS_ROOT="$(dirname "$SCRIPT_DIR")"
-NOTES_DIR="$CHAOS_ROOT/notes"
 export PATH="$HOME/.bun/bin:$PATH"
+
+# Ensure data directory exists
+source "$SCRIPT_DIR/ensure-data-dir.sh"
 
 # Parse arguments
 ID=""

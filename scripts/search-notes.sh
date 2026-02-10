@@ -11,9 +11,10 @@ fi
 
 QUERY="$1"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-CHAOS_ROOT="$(dirname "$SCRIPT_DIR")"
-NOTES_DIR="$CHAOS_ROOT/notes"
 export PATH="$HOME/.bun/bin:$PATH"
+
+# Ensure data directory exists
+source "$SCRIPT_DIR/ensure-data-dir.sh"
 
 # Find matching files
 MATCHES=$(grep -ril "$QUERY" "$NOTES_DIR"/*.md 2>/dev/null | sort -u)
